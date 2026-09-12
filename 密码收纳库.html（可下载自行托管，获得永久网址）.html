@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>密码收纳库 · 加密同步</title>
+<link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#1b1b1f;--card:#26262b;--text:#ece8e1;--muted:#9a978f;--accent:#d08a52;--accent-soft:rgba(208,138,82,.16);--accent2:#7ba8b8;--accent2-soft:rgba(123,168,184,.14);--border:rgba(236,232,225,.12);--danger:#e06c5a}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:radial-gradient(900px 400px at 70% -5%, rgba(208,138,82,.10), transparent 60%), var(--bg);color:var(--text);font-family:'Red Hat Display','Noto Sans SC',sans-serif;min-height:100vh}
+.wrap{max-width:760px;margin:0 auto;padding:32px 16px 60px}
+.inp{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;outline:none;font-family:inherit}
+.inp:focus{border-color:var(--accent)}
+textarea.inp{resize:vertical;min-height:70px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.btn{padding:10px 18px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all .15s;font-family:inherit;color:var(--text)}
+.btn-primary{background:var(--accent-soft);border:1px solid var(--accent)}
+.btn-primary:hover{background:rgba(208,138,82,.3)}
+.btn-secondary{background:var(--card);border:1px solid var(--border)}
+.btn-secondary:hover{border-color:var(--accent)}
+.btn-danger{background:transparent;color:var(--danger);border:1px solid rgba(224,108,90,.4)}
+.btn-danger:hover{background:rgba(224,108,90,.12)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.chip{padding:6px 14px;border-radius:20px;font-size:13px;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:transparent;transition:all .15s;white-space:nowrap;font-family:inherit}
+.chip.active{background:var(--accent-soft);color:var(--text);border-color:var(--accent)}
+.chip:hover{color:var(--text)}
+.card-entry{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 18px;margin-bottom:12px;transition:border-color .15s}
+.card-entry:hover{border-color:var(--accent)}
+.copy-btn{padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s;font-family:inherit;flex-shrink:0}
+.copy-btn:hover{color:var(--text);border-color:var(--accent)}
+.icon-btn{width:34px;height:34px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s;flex-shrink:0}
+.icon-btn:hover{color:var(--text);border-color:var(--accent)}
+.field-row{display:flex;align-items:center;gap:8px;padding:5px 0}
+.field-label{font-size:12px;color:var(--muted);width:42px;flex-shrink:0}
+.field-value{flex:1;font-size:14px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,Menlo,monospace;min-width:0}
+.tag{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;background:var(--accent2-soft);color:var(--accent2);border:1px solid rgba(123,168,184,.3);flex-shrink:0}
+.fld{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px}
+.err{color:var(--danger);font-size:12px;margin:12px 0 0;min-height:16px}
+.ok{color:#6fbf73;font-size:12px;margin:12px 0 0;min-height:16px}
+.link-btn{background:none;border:none;color:var(--accent2);cursor:pointer;font-size:12px;text-decoration:underline;padding:0;font-family:inherit}
+.link-btn:hover{opacity:.8}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:40}
+.modal{position:absolute;left:50%;transform:translateX(-50%);width:92%;max-width:460px;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.6);z-index:41;max-height:90vh;overflow-y:auto}
+.fade-in{animation:fi .3s ease}
+@keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.hint{font-size:11px;color:var(--muted);line-height:1.7;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+
+  <!-- 锁定视图 -->
+  <div id="lockView" class="fade-in" style="padding-top:40px;">
+    <div style="max-width:400px;margin:0 auto;background:var(--card);border:1px solid var(--border);border-radius:18px;padding:30px 26px;box-shadow:0 20px 60px rgba(0,0,0,.4)">
+      <div style="display:flex;justify-content:center;margin-bottom:16px">
+        <div style="width:56px;height:56px;border-radius:16px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;color:var(--accent)">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+      </div>
+      <h1 id="lockTitle" style="font-size:21px;font-weight:700;text-align:center;margin:0 0 6px">密码收纳库</h1>
+      <p id="lockSub" style="font-size:13px;color:var(--muted);text-align:center;margin:0 0 20px;line-height:1.6">输入主密码解锁你的账号库</p>
+
+      <div id="loginFields">
+        <label class="fld">主密码</label>
+        <input id="loginPwd" type="password" class="inp" placeholder="输入主密码解锁">
+      </div>
+      <div id="setupFields" style="display:none">
+        <label class="fld">设置主密码</label>
+        <input id="setupPwd1" type="password" class="inp" placeholder="至少 4 位，务必牢记" style="margin-bottom:4px">
+        <label class="fld">确认主密码</label>
+        <input id="setupPwd2" type="password" class="inp" placeholder="再次输入">
+      </div>
+      <div id="importFields" style="display:none">
+        <label class="fld">粘贴同步码</label>
+        <textarea id="importCode" class="inp" placeholder="PV1:..." style="min-height:90px"></textarea>
+      </div>
+
+      <p id="lockErr" class="err"></p>
+      <button id="unlockBtn" class="btn btn-primary" style="width:100%;margin-top:16px;padding:12px;font-size:15px">解锁</button>
+      <div style="display:flex;justify-content:space-between;margin-top:16px;font-size:12px">
+        <button class="link-btn" id="toSetup">首次使用？创建密码库</button>
+        <button class="link-btn" id="toImport">通过同步码恢复</button>
+      </div>
+      <p class="hint" style="text-align:center">数据经加密后仅保存在本设备，可用同步码在多设备间迁移<br>忘记主密码将无法恢复数据</p>
+    </div>
+  </div>
+
+  <!-- 主视图 -->
+  <div id="mainView" style="display:none">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px">
+      <div style="display:flex;align-items:center;gap:10px;flex:1 1 180px;min-width:160px">
+        <div style="width:38px;height:38px;border-radius:10px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;color:var(--accent);flex-shrink:0">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <div>
+          <h1 style="font-size:18px;font-weight:700;margin:0;line-height:1.2">我的账号库</h1>
+          <p style="font-size:11px;color:var(--muted);margin:2px 0 0"><span id="entryCount">0</span> 条记录 · <span id="modeLabel">AES</span> 加密</p>
+        </div>
+      </div>
+      <div style="position:relative;flex:1 1 160px;min-width:140px">
+        <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%)" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="searchInput" class="inp" placeholder="搜索标题 / 账号 / 网址" style="padding-left:32px">
+      </div>
+      <button id="syncBtn" class="icon-btn" title="同步 / 备份">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+      </button>
+      <button id="lockBtn" class="icon-btn" title="锁定">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+      </button>
+      <button id="addBtn" class="btn btn-primary" style="padding:9px 16px;display:inline-flex;align-items:center;gap:6px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>添加
+      </button>
+    </div>
+
+    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;margin-bottom:14px" id="catBar"></div>
+    <div id="entryList"></div>
+    <div id="emptyState" style="display:none;text-align:center;padding:60px 20px;color:var(--muted)">
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:14px;opacity:.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+      <p style="margin:0;font-size:14px" id="emptyText">暂无记录，点击右上角「添加」保存你的第一个账号</p>
+    </div>
+  </div>
+
+  <!-- 条目编辑模态 -->
+  <div class="overlay" id="modalOverlay">
+    <div class="modal fade-in" id="modalCard">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <h2 id="modalTitle" style="font-size:17px;font-weight:700;margin:0">添加账号</h2>
+        <button class="icon-btn modalClose" style="width:30px;height:30px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <label class="fld">标题 <span style="color:var(--danger)">*</span></label>
+      <input id="fTitle" class="inp" placeholder="例如：GitHub、公司邮箱">
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="flex:1 1 140px;min-width:120px"><label class="fld">网址</label><input id="fUrl" class="inp" placeholder="https://..."></div>
+        <div style="flex:1 1 120px;min-width:120px"><label class="fld">分类</label><select id="fCategory" class="inp"></select></div>
+      </div>
+      <label class="fld">账号 / 用户名</label>
+      <input id="fUsername" class="inp" placeholder="邮箱或用户名">
+      <label class="fld">密码</label>
+      <div style="display:flex;gap:8px">
+        <input id="fPassword" type="password" class="inp" style="flex:1" placeholder="登录密码">
+        <button id="togglePw" class="icon-btn" title="显示/隐藏"><svg id="eyeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button id="genPw" class="btn btn-secondary" style="padding:0 12px;font-size:12px;flex-shrink:0">生成</button>
+      </div>
+      <label class="fld">备注（自定义文本）</label>
+      <textarea id="fNote" class="inp" placeholder="安全问题、绑定手机、其他说明..." style="min-height:60px"></textarea>
+      <p id="formErr" class="err"></p>
+      <div style="display:flex;gap:10px;margin-top:14px">
+        <button id="saveBtn" class="btn btn-primary" style="flex:1">保存</button>
+        <button class="btn btn-secondary modalClose">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 分类管理模态 -->
+  <div class="overlay" id="catModalOverlay">
+    <div class="modal fade-in" style="max-width:400px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h2 style="font-size:17px;font-weight:700;margin:0">管理分类</h2>
+        <button class="icon-btn catModalClose" style="width:30px;height:30px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <input id="newCatInput" class="inp" placeholder="输入新分类名称" style="flex:1">
+        <button id="addCatBtn" class="btn btn-primary" style="flex-shrink:0">添加</button>
+      </div>
+      <div id="catManageList" style="display:flex;flex-direction:column;gap:8px;max-height:260px;overflow-y:auto"></div>
+      <p class="hint">删除分类后，该分类下的条目将归入「未分类」。</p>
+    </div>
+  </div>
+
+  <!-- 同步模态 -->
+  <div class="overlay" id="syncModalOverlay">
+    <div class="modal fade-in" style="max-width:520px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <h2 style="font-size:17px;font-weight:700;margin:0">多设备同步 / 备份</h2>
+        <button class="icon-btn syncModalClose" style="width:30px;height:30px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <p class="hint" style="margin-top:0">同步码是你的全部数据经主密码加密后的密文，可安全地通过微信/邮件/网盘传输。在新设备打开本网址，选择「通过同步码恢复」并粘贴即可。</p>
+      <label class="fld">同步码（一键复制后保存）</label>
+      <textarea id="syncCode" class="inp" readonly style="min-height:80px"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="copySyncCode" class="btn btn-secondary" style="flex:1">复制同步码</button>
+        <button id="refreshSync" class="btn btn-secondary">刷新</button>
+      </div>
+      <label class="fld">同步链接（新设备直接打开即可恢复）</label>
+      <input id="syncLink" class="inp" readonly style="font-size:11px">
+      <button id="copySyncLink" class="btn btn-secondary" style="width:100%;margin-top:8px">复制同步链接</button>
+      <p id="syncMsg" class="ok"></p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var LS_KEY='pwd_vault_v1';
+  var vault=null, masterKey=null, mode='aes', salt=null;
+  var currentFilter='全部', searchQ='', editingId=null, visiblePw={};
+  var $=function(id){return document.getElementById(id);};
+  var useAes=!!(window.crypto && crypto.subtle);
+  mode=useAes?'aes':'simple';
+
+  function b64(buf){return btoa(String.fromCharCode.apply(null, new Uint8Array(buf)));}
+  function fromB64(s){return Uint8Array.from(atob(s), function(c){return c.charCodeAt(0);});}
+  function enc(s){return new TextEncoder().encode(s);}
+  function dec(buf){return new TextDecoder().decode(buf);}
+  function storageOk(){try{var t='__t'+Date.now();localStorage.setItem(t,t);localStorage.removeItem(t);return true;}catch(e){return false;}}
+  var canStore=storageOk();
+  function loadRaw(){try{return JSON.parse(localStorage.getItem(LS_KEY));}catch(e){return null;}}
+  function saveRaw(raw){if(!canStore)return;try{localStorage.setItem(LS_KEY,JSON.stringify(raw));}catch(e){}}
+
+  // ---------- AES 模式 ----------
+  function deriveAesKey(pwd, saltBytes){
+    return crypto.subtle.importKey('raw', enc(pwd), {name:'PBKDF2'}, false, ['deriveKey']).then(function(km){
+      return crypto.subtle.deriveKey({name:'PBKDF2', salt:saltBytes, iterations:120000, hash:'SHA-256'}, km, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+    });
+  }
+  function aesEncrypt(obj, key){
+    var iv=crypto.getRandomValues(new Uint8Array(12));
+    return crypto.subtle.encrypt({name:'AES-GCM', iv:iv}, key, enc(JSON.stringify(obj))).then(function(ct){
+      return {iv:b64(iv.buffer), ct:b64(ct)};
+    });
+  }
+  function aesDecrypt(ivB64, ctB64, key){
+    return crypto.subtle.decrypt({name:'AES-GCM', iv:fromB64(ivB64)}, key, fromB64(ctB64)).then(function(pt){return JSON.parse(dec(pt));});
+  }
+
+  // ---------- Simple 降级模式（非 https 环境，纯 JS 流加密） ----------
+  function simpleKey(pwd, saltB64){
+    var s=pwd+'::'+saltB64+'::vault';
+    var h1=0x811c9dc5>>>0, h2=0x1b873593>>>0, h3=0x9e3779b9>>>0, h4=0x85ebca6b>>>0;
+    for(var i=0;i<s.length;i++){var c=s.charCodeAt(i);
+      h1=Math.imul(h1^c,0x01000193)>>>0; h2=Math.imul(h2^(c+0x9e37),0x85ebca77)>>>0;
+      h3=(Math.imul(h3,0x5bd1e995)^c)>>>0; h4=(h4+Math.imul(c,0x27d4eb2f))>>>0;
+    }
+    var key=new Uint8Array(256);
+    for(var j=0;j<64;j++){
+      h1=Math.imul(h1^h3,0x01000193)>>>0; h2=Math.imul(h2^h4,0x85ebca77)>>>0;
+      h3=(Math.imul(h3,0x5bd1e995)^h2)>>>0; h4=(h4+Math.imul(h1,0x27d4eb2f))>>>0;
+      key[j*4]=(h1>>>24)&0xff; key[j*4+1]=(h2>>>16)&0xff; key[j*4+2]=(h3>>>8)&0xff; key[j*4+3]=h4&0xff;
+    }
+    return key;
+  }
+  function simpleXor(data, key){
+    var out=new Uint8Array(data.length); var a=0,b=0;
+    for(var i=0;i<data.length;i++){
+      a=(a+key[i%256])&0xff; b=(b+a+key[(i*7+13)%256])&0xff;
+      out[i]=data[i]^key[(a+b)%256]^(b&0xff);
+    }
+    return out;
+  }
+  function simpleEncrypt(obj, keyBytes, saltB64){
+    var nonce=crypto.getRandomValues(new Uint8Array(16));
+    var plain=enc(JSON.stringify(obj));
+    var combined=new Uint8Array(nonce.length+plain.length);
+    combined.set(nonce,0); combined.set(plain,nonce.length);
+    return {iv:b64(nonce.buffer), ct:b64(simpleXor(combined, keyBytes).buffer)};
+  }
+  function simpleDecrypt(ivB64, ctB64, keyBytes){
+    var combined=simpleXor(fromB64(ctB64), keyBytes);
+    var plain=combined.slice(16); // 去掉 nonce
+    return JSON.parse(dec(plain));
+  }
+
+  // ---------- 统一接口 ----------
+  function genSalt(){return crypto.getRandomValues(new Uint8Array(16));}
+  function setupVault(pwd){
+    salt=genSalt();
+    vault={categories:['工作','社交','金融','其他'], entries:[]};
+    if(useAes){
+      return deriveAesKey(pwd, salt).then(function(k){
+        masterKey=k; return aesEncrypt(vault, k);
+      }).then(function(r){
+        saveRaw({v:1, mode:'aes', salt:b64(salt.buffer), iv:r.iv, ct:r.ct});
+      });
+    }else{
+      masterKey=simpleKey(pwd, b64(salt.buffer));
+      var r=simpleEncrypt(vault, masterKey, b64(salt.buffer));
+      saveRaw({v:1, mode:'simple', salt:b64(salt.buffer), iv:r.iv, ct:r.ct});
+      return Promise.resolve();
+    }
+  }
+  function unlockVault(pwd){
+    var raw=loadRaw();
+    if(!raw||!raw.salt)return Promise.reject('no_vault');
+    mode=raw.mode||'aes';
+    salt=fromB64(raw.salt);
+    if(mode==='aes' && useAes){
+      return deriveAesKey(pwd, salt).then(function(k){
+        return aesDecrypt(raw.iv, raw.ct, k).then(function(v){masterKey=k; vault=v;});
+      });
+    }else{
+      // simple 模式（或 aes 数据在不支持 subtle 的环境打开）
+      var key=simpleKey(pwd, raw.salt);
+      try{
+        vault=simpleDecrypt(raw.iv, raw.ct, key);
+        masterKey=key; mode='simple';
+        return Promise.resolve();
+      }catch(e){return Promise.reject('bad_password');}
+    }
+  }
+  function persist(){
+    if(!vault)return Promise.resolve();
+    var raw=loadRaw()||{};
+    var p;
+    if(mode==='aes' && useAes && masterKey){
+      p=aesEncrypt(vault, masterKey).then(function(r){raw.iv=r.iv; raw.ct=r.ct; raw.mode='aes';});
+    }else{
+      if(!masterKey)return Promise.resolve();
+      var r=simpleEncrypt(vault, masterKey, raw.salt||b64(salt.buffer));
+      raw.iv=r.iv; raw.ct=r.ct; raw.mode='simple';
+      p=Promise.resolve();
+    }
+    return p.then(function(){raw.v=1; if(!raw.salt)raw.salt=b64(salt.buffer); saveRaw(raw);});
+  }
+
+  // ---------- 锁定视图切换 ----------
+  function showLogin(){
+    $('lockTitle').textContent='密码收纳库已锁定';
+    $('lockSub').textContent='输入主密码解锁你的账号库';
+    $('loginFields').style.display='block'; $('setupFields').style.display='none'; $('importFields').style.display='none';
+    $('unlockBtn').textContent='解锁'; $('lockErr').textContent=''; $('loginPwd').value='';
+  }
+  function showSetup(){
+    $('lockTitle').textContent='首次使用：设置主密码';
+    $('lockSub').textContent='主密码用于加密你的所有账号数据';
+    $('loginFields').style.display='none'; $('setupFields').style.display='block'; $('importFields').style.display='none';
+    $('unlockBtn').textContent='创建并进入'; $('lockErr').textContent='';
+  }
+  function showImport(){
+    $('lockTitle').textContent='通过同步码恢复';
+    $('lockSub').textContent='粘贴从其他设备导出的同步码';
+    $('loginFields').style.display='none'; $('setupFields').style.display='none'; $('importFields').style.display='block';
+    $('unlockBtn').textContent='恢复数据'; $('lockErr').textContent='';
+  }
+  function showMain(){
+    $('lockView').style.display='none'; $('mainView').style.display='block';
+    if(!vault.categories)vault.categories=['工作','社交','金融','其他'];
+    if(!vault.entries)vault.entries=[];
+    $('modeLabel').textContent=mode==='aes'?'AES-256':'兼容模式';
+    renderAll();
+  }
+  function lock(){
+    vault=null; masterKey=null; visiblePw={}; currentFilter='全部'; searchQ='';
+    $('searchInput').value='';
+    $('mainView').style.display='none'; $('lockView').style.display='block'; showLogin();
+  }
+  $('toSetup').addEventListener('click', showSetup);
+  $('toImport').addEventListener('click', showImport);
+
+  $('unlockBtn').addEventListener('click', function(){
+    var sf=$('setupFields').style.display!=='none', imf=$('importFields').style.display!=='none';
+    if(sf){
+      var p1=$('setupPwd1').value, p2=$('setupPwd2').value;
+      if(p1.length<4){$('lockErr').textContent='主密码至少 4 位';return;}
+      if(p1!==p2){$('lockErr').textContent='两次输入不一致';return;}
+      $('unlockBtn').disabled=true;
+      setupVault(p1).then(function(){$('unlockBtn').disabled=false; showMain();})
+        .catch(function(){$('unlockBtn').disabled=false; $('lockErr').textContent='初始化失败，请刷新重试';});
+    }else if(imf){
+      var code=$('importCode').value.trim();
+      if(!code){$('lockErr').textContent='请粘贴同步码';return;}
+      try{
+        var raw=parseSyncCode(code);
+        var existing=loadRaw();
+        if(existing && existing.ct && !confirm('检测到本机已有数据，导入将覆盖它。确定继续？'))return;
+        saveRaw(raw);
+        $('lockErr').textContent='';
+        showLogin();
+        $('lockSub').textContent='数据已恢复，请输入主密码解锁';
+      }catch(e){$('lockErr').textContent='同步码格式无效，请检查后重试';}
+    }else{
+      var p=$('loginPwd').value;
+      if(!p){$('lockErr').textContent='请输入主密码';return;}
+      $('unlockBtn').disabled=true;
+      unlockVault(p).then(function(){
+        $('unlockBtn').disabled=false; showMain();
+      }).catch(function(){
+        $('unlockBtn').disabled=false; $('lockErr').textContent='密码错误，请重试'; $('loginPwd').value='';
+      });
+    }
+  });
+  ['loginPwd','setupPwd2'].forEach(function(id){
+    $(id).addEventListener('keydown', function(e){if(e.key==='Enter')$('unlockBtn').click();});
+  });
+  $('lockBtn').addEventListener('click', lock);
+
+  // ---------- 同步码 ----------
+  function makeSyncCode(){
+    var raw=loadRaw();
+    if(!raw||!raw.ct)return '';
+    return 'PV1:'+btoa(JSON.stringify(raw));
+  }
+  function parseSyncCode(code){
+    code=code.trim();
+    if(code.indexOf('PV1:')===0)code=code.slice(4);
+    // 同步链接里可能被 encode
+    try{code=decodeURIComponent(code);}catch(e){}
+    if(code.indexOf('PV1:')===0)code=code.slice(4);
+    var obj=JSON.parse(atob(code));
+    if(!obj.salt||!obj.ct)throw new Error('bad');
+    return obj;
+  }
+  function openSyncModal(){
+    $('syncCode').value=makeSyncCode();
+    $('syncLink').value=location.origin+location.pathname+'#sync='+encodeURIComponent(makeSyncCode());
+    $('syncMsg').textContent='';
+    $('syncModalOverlay').style.display='block';
+  }
+  $('syncBtn').addEventListener('click', openSyncModal);
+  $('refreshSync').addEventListener('click', function(){persist().then(openSyncModal);});
+  function copyToClipboard(text, btn, msg){
+    function done(){var o=btn.textContent; btn.textContent='已复制'; setTimeout(function(){btn.textContent=o;},1200); if(msg)$('syncMsg').textContent=msg;}
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done).catch(fb);}else{fb();}
+    function fb(){var ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(e){}ta.remove();done();}
+  }
+  $('copySyncCode').addEventListener('click', function(){copyToClipboard($('syncCode').value, this, '同步码已复制，请妥善保存');});
+  $('copySyncLink').addEventListener('click', function(){copyToClipboard($('syncLink').value, this, '同步链接已复制，在新设备打开即可恢复');});
+
+  // ---------- 复制（条目） ----------
+  function copyText(text, btn){
+    function done(){var orig=btn.innerHTML; btn.textContent='已复制'; btn.style.color='var(--accent)'; setTimeout(function(){btn.innerHTML=orig; btn.style.color='';},1200);}
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done).catch(fb);}else{fb();}
+    function fb(){var ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(e){}ta.remove();done();}
+  }
+
+  // ---------- 渲染 ----------
+  function svgIcon(type){
+    var p={
+      copy:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+      eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
+      eyeOff:'<path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3.5 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/>',
+      edit:'<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>',
+      trash:'<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'
+    };
+    return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block;vertical-align:-2px">'+p[type]+'</svg>';
+  }
+  function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+  function renderCategories(){
+    var bar=$('catBar');
+    var cats=['全部'].concat(vault.categories);
+    var html='';
+    cats.forEach(function(c){html+='<button class="chip'+(c===currentFilter?' active':'')+'" data-cat="'+esc(c)+'">'+esc(c)+'</button>';});
+    html+='<button class="chip" id="openCatMgr" style="border-style:dashed">+ 管理分类</button>';
+    bar.innerHTML=html;
+    bar.querySelectorAll('button[data-cat]').forEach(function(b){
+      b.addEventListener('click', function(){currentFilter=b.getAttribute('data-cat'); renderCategories(); renderEntries();});
+    });
+    $('openCatMgr').addEventListener('click', function(){renderCatManage(); $('catModalOverlay').style.display='block';});
+  }
+  function renderEntries(){
+    var list=$('entryList');
+    var q=searchQ.trim().toLowerCase();
+    var items=vault.entries.filter(function(e){
+      if(currentFilter!=='全部' && (e.category||'未分类')!==currentFilter)return false;
+      if(q){var hay=((e.title||'')+' '+(e.username||'')+' '+(e.url||'')).toLowerCase(); if(hay.indexOf(q)===-1)return false;}
+      return true;
+    });
+    $('entryCount').textContent=vault.entries.length;
+    if(items.length===0){
+      list.innerHTML=''; $('emptyState').style.display='block';
+      $('emptyText').textContent=vault.entries.length===0?'暂无记录，点击右上角「添加」保存你的第一个账号':'当前筛选条件下没有匹配的记录';
+      return;
+    }
+    $('emptyState').style.display='none';
+    var html='';
+    items.forEach(function(e){
+      var show=!!visiblePw[e.id];
+      var pwDisplay=show?esc(e.password||''):'&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;';
+      var cat=e.category||'未分类';
+      html+='<div class="card-entry fade-in">'+
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'+
+          '<strong style="font-size:15px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">'+esc(e.title||'未命名')+'</strong>'+
+          '<span class="tag">'+esc(cat)+'</span>'+
+          '<button class="icon-btn edit-btn" data-id="'+e.id+'" title="编辑">'+svgIcon('edit')+'</button>'+
+          '<button class="icon-btn del-btn" data-id="'+e.id+'" title="删除" style="color:var(--danger)">'+svgIcon('trash')+'</button>'+
+        '</div>';
+      if(e.url)html+='<div class="field-row"><span class="field-label">网址</span><span class="field-value">'+esc(e.url)+'</span><button class="copy-btn" data-copy="'+esc(e.url)+'">'+svgIcon('copy')+' 复制</button></div>';
+      if(e.username)html+='<div class="field-row"><span class="field-label">账号</span><span class="field-value">'+esc(e.username)+'</span><button class="copy-btn" data-copy="'+esc(e.username)+'">'+svgIcon('copy')+' 复制</button></div>';
+      if(e.password)html+='<div class="field-row"><span class="field-label">密码</span><span class="field-value" style="'+(show?'':'letter-spacing:2px')+'">'+pwDisplay+'</span>'+
+        '<button class="icon-btn toggle-pw" data-id="'+e.id+'" title="显示/隐藏" style="width:28px;height:28px">'+(show?svgIcon('eyeOff'):svgIcon('eye'))+'</button>'+
+        '<button class="copy-btn" data-copy="'+esc(e.password)+'">'+svgIcon('copy')+' 复制</button></div>';
+      if(e.note)html+='<div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border);font-size:12px;color:var(--muted);line-height:1.6;white-space:pre-wrap;word-break:break-word">'+esc(e.note)+'</div>';
+      html+='</div>';
+    });
+    list.innerHTML=html;
+    list.querySelectorAll('.copy-btn').forEach(function(b){b.addEventListener('click', function(){copyText(b.getAttribute('data-copy'), b);});});
+    list.querySelectorAll('.toggle-pw').forEach(function(b){b.addEventListener('click', function(){visiblePw[b.getAttribute('data-id')]=!visiblePw[b.getAttribute('data-id')]; renderEntries();});});
+    list.querySelectorAll('.edit-btn').forEach(function(b){b.addEventListener('click', function(){openModal(b.getAttribute('data-id'));});});
+    list.querySelectorAll('.del-btn').forEach(function(b){b.addEventListener('click', function(){
+      var id=b.getAttribute('data-id'); var ent=vault.entries.find(function(x){return x.id===id;});
+      if(confirm('确定删除「'+(ent?ent.title:'')+'」这条记录吗？')){vault.entries=vault.entries.filter(function(x){return x.id!==id;}); persist().then(renderAll);}
+    });});
+  }
+  function renderAll(){renderCategories(); renderEntries();}
+
+  // ---------- 条目模态 ----------
+  function fillCategorySelect(){
+    var opts='<option value="">未分类</option>';
+    vault.categories.forEach(function(c){opts+='<option value="'+esc(c)+'">'+esc(c)+'</option>';});
+    $('fCategory').innerHTML=opts;
+  }
+  function openModal(id){
+    editingId=id||null; fillCategorySelect(); $('formErr').textContent='';
+    if(editingId){
+      var e=vault.entries.find(function(x){return x.id===editingId;}); if(!e)return;
+      $('modalTitle').textContent='编辑账号';
+      $('fTitle').value=e.title||''; $('fUrl').value=e.url||''; $('fUsername').value=e.username||'';
+      $('fPassword').value=e.password||''; $('fNote').value=e.note||''; $('fCategory').value=e.category||'';
+    }else{
+      $('modalTitle').textContent='添加账号';
+      ['fTitle','fUrl','fUsername','fPassword','fNote'].forEach(function(i){$(i).value='';});
+      $('fCategory').value=currentFilter==='全部'?'':currentFilter;
+    }
+    $('fPassword').type='password';
+    $('modalOverlay').style.display='block';
+  }
+  $('addBtn').addEventListener('click', function(){openModal(null);});
+  document.querySelectorAll('.modalClose').forEach(function(b){b.addEventListener('click', function(){$('modalOverlay').style.display='none';});});
+  $('togglePw').addEventListener('click', function(){var i=$('fPassword'); i.type=i.type==='password'?'text':'password';});
+  $('genPw').addEventListener('click', function(){
+    var chars='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%^&*()-_=+';
+    var out='', arr=new Uint32Array(16); crypto.getRandomValues(arr);
+    for(var i=0;i<16;i++)out+=chars[arr[i]%chars.length];
+    $('fPassword').value=out; $('fPassword').type='text';
+  });
+  $('saveBtn').addEventListener('click', function(){
+    var title=$('fTitle').value.trim();
+    if(!title){$('formErr').textContent='请填写标题';return;}
+    var data={title:title, url:$('fUrl').value.trim(), username:$('fUsername').value.trim(),
+      password:$('fPassword').value, note:$('fNote').value, category:$('fCategory').value, updatedAt:Date.now()};
+    if(editingId){var e=vault.entries.find(function(x){return x.id===editingId;}); if(e){for(var k in data)e[k]=data[k];}}
+    else{data.id='e'+Date.now()+Math.floor(Math.random()*1000); data.createdAt=Date.now(); vault.entries.unshift(data);}
+    persist().then(function(){$('modalOverlay').style.display='none'; renderAll();});
+  });
+
+  // ---------- 分类管理 ----------
+  function renderCatManage(){
+    var box=$('catManageList'); var html='';
+    vault.categories.forEach(function(c){
+      var count=vault.entries.filter(function(e){return (e.category||'未分类')===c;}).length;
+      html+='<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:10px">'+
+        '<span style="flex:1;font-size:14px">'+esc(c)+'</span><span style="font-size:12px;color:var(--muted)">'+count+' 条</span>'+
+        '<button class="btn btn-danger del-cat" data-cat="'+esc(c)+'" style="padding:4px 10px;font-size:12px">删除</button></div>';
+    });
+    if(!vault.categories.length)html='<p style="color:var(--muted);font-size:13px;text-align:center;padding:16px">暂无分类</p>';
+    box.innerHTML=html;
+    box.querySelectorAll('.del-cat').forEach(function(b){b.addEventListener('click', function(){
+      var c=b.getAttribute('data-cat');
+      if(confirm('删除分类「'+c+'」？该分类下的条目将归入「未分类」。')){
+        vault.categories=vault.categories.filter(function(x){return x!==c;});
+        vault.entries.forEach(function(e){if(e.category===c)e.category='';});
+        if(currentFilter===c)currentFilter='全部';
+        persist().then(function(){renderCatManage(); renderAll();});
+      }
+    });});
+  }
+  document.querySelectorAll('.catModalClose').forEach(function(b){b.addEventListener('click', function(){$('catModalOverlay').style.display='none';});});
+  $('addCatBtn').addEventListener('click', function(){
+    var v=$('newCatInput').value.trim(); if(!v)return;
+    if(vault.categories.indexOf(v)>=0){alert('该分类已存在');return;}
+    vault.categories.push(v); $('newCatInput').value='';
+    persist().then(function(){renderCatManage(); renderCategories();});
+  });
+  $('newCatInput').addEventListener('keydown', function(e){if(e.key==='Enter')$('addCatBtn').click();});
+
+  document.querySelectorAll('.syncModalClose').forEach(function(b){b.addEventListener('click', function(){$('syncModalOverlay').style.display='none';});});
+  $('searchInput').addEventListener('input', function(){searchQ=this.value; renderEntries();});
+
+  // 点击遮罩空白关闭
+  ['modalOverlay','catModalOverlay','syncModalOverlay'].forEach(function(id){
+    $(id).addEventListener('click', function(e){if(e.target===this)this.style.display='none';});
+  });
+
+  // ---------- 初始化：检测 URL hash 中的同步数据 ----------
+  function init(){
+    var m=location.hash.match(/sync=([^&]+)/);
+    if(m){
+      try{
+        var code=decodeURIComponent(m[1]);
+        var raw=parseSyncCode(code);
+        var existing=loadRaw();
+        if(existing && existing.ct){
+          if(confirm('检测到链接中包含同步数据，导入将覆盖本机现有数据。确定导入？')){
+            saveRaw(raw); history.replaceState(null,'',location.pathname);
+          }
+        }else{
+          saveRaw(raw); history.replaceState(null,'',location.pathname);
+        }
+      }catch(e){}
+    }
+    var raw=loadRaw();
+    if(!raw||!raw.salt){showSetup();}else{showLogin();}
+  }
+  init();
+})();
+</script>
+</body>
+</html>
